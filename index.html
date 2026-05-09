@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>dedsamodell KEY</title>
+    <style>
+        body { background: #000; color: #fff; font-family: sans-serif; text-align: center; padding: 30px; }
+        .container { max-width: 500px; margin: 0 auto; border: 1px solid #fff; padding: 30px; border-radius: 15px; }
+        h1 { letter-spacing: 2px; margin: 0 0 5px; }
+        .sub { color: #aaa; font-size: 14px; margin-bottom: 30px; }
+        .btn { display: inline-block; padding: 12px 30px; background: #fff; color: #000; text-decoration: none; font-weight: bold; border-radius: 8px; cursor: pointer; border: none; font-size: 16px; margin: 10px; }
+        .btn:hover { background: #ccc; }
+        .key-display { background: #111; border: 1px solid #fff; padding: 15px; font-size: 24px; letter-spacing: 3px; margin: 20px 0; word-break: break-all; color: #0f0; }
+        .info { color: #aaa; font-size: 13px; margin-top: 20px; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>dedsamodell KEY</h1>
+        <p class="sub">Трёхэтапная активация</p>
+
+        <div id="stage1">
+            <button class="btn" onclick="openStage(1)">1 этап</button>
+        </div>
+        <div id="stage2" class="hidden">
+            <button class="btn" onclick="openStage(2)">2 этап</button>
+        </div>
+        <div id="stage3" class="hidden">
+            <button class="btn" onclick="openStage(3)">3 этап</button>
+        </div>
+        <div id="getKey" class="hidden">
+            <button class="btn" onclick="generateKey()">Получить ключ</button>
+        </div>
+        <div id="result" class="hidden">
+            <p>Ваш ключ:</p>
+            <div class="key-display" id="keyText"></div>
+            <button class="btn" onclick="copyKey()">📋 Скопировать</button>
+            <p class="info">Вставьте ключ в окно активации скрипта</p>
+        </div>
+        <p class="info" style="margin-top:40px;">© dedsamodell 2026</p>
+    </div>
+
+    <script>
+        // ⚙️ ЗАМЕНИ НА СВОЙ ВЕБХУК И ID СООБЩЕНИЯ С КЛЮЧАМИ
+        const WEBHOOK_URL = "https://discord.com/api/webhooks/1502577103634300970/AK9Bm8ZS_DI_vGa0xb6MNUe_sNLp3lMQ2RDdfMm1hHZ2O5a87Ma9BiSTvLiy2jaiWDtV";
+        const MESSAGE_ID = 1502579328867897376;  // ID сообщения с ключами
+
+        // Ссылки на твои этапы Work.ink (уже готовые)
+        const STAGE_LINKS = [
+            "https://work.ink/2zLT/trident-survival-script",
+            "https://work.ink/2zLT/trident-survival-script-2",
+            "https://work.ink/2zLT/trident-survival-script-3"
+        ];
+
+        // Открывает этап в новой вкладке и показывает следующий
+        function openStage(n) {
+            window.open(STAGE_LINKS[n - 1], '_blank');
+            // Прячем текущую кнопку
+            if (n === 1) {
+                document.getElementById('stage1').classList.add('hidden');
+                document.getElementById('stage2').classList.remove('hidden');
+            } else if (n === 2) {
+                document.getElementById('stage2').classList.add('hidden');
+                document.getElementById('stage3').classList.remove('hidden');
+            } else if (n === 3) {
+                document.getElementById('stage3').classList.add('hidden');
+                document.getElementById('getKey').classList.remove('hidden');
+            }
+        }
+
+        // Генерация ключа формата XXXX-XXXX-XXXX-XXXX
+        function randomKey() {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            let key = '';
+            for (let i = 0; i < 4; i++) {
+                for (let j = 0; j < 4; j++) {
+                    key += chars.charAt(Math.floor(Math.random() * chars.length));
+                }
+                if (i < 3) key += '-';
+            }
+            return key;
+        }
+
+        async function generateKey() {
+            const key = randomKey();
+            const expTime = Math.floor(Date.now() / 1000) + 7 * 86400; // 7 дней
+            const dur = "7д";
+            const hwid = "HWID";
+
+            document.getElementById('getKey').classList.add('hidden');
+            document.getElementById('result').classList.remove('hidden');
+            document.getElementById('keyText').innerText = "Добавляем ключ в Discord...";
+
+            try {
+                const parts = WEBHOOK_URL.split('/');
+                const wid = parts[parts.length - 2];
+                const wt = parts[parts.length - 1];
+
+                // Получаем текущие ключи
+                const msgUrl = `https://discord.com/api/webhooks/${wid}/${wt}/messages/${MESSAGE_ID}`;
+                const resp = await fetch(msgUrl);
+                const data = await resp.json();
+                let currentKeys = [];
+                if (data.embeds?.[0]?.description) {
+                    const text = data.embeds[0].description.replace(/```/g, '').trim();
+                    currentKeys = text.split('\n').filter(line => line.includes('|')).map(line => {
+                        const p = line.split('|');
+                        return { key: p[0], exp: p[1], dur: p[2] || '7д', hwid: p[3] || 'HWID' };
+                    });
+                }
+
+                // Добавляем новый ключ
+                currentKeys.push({ key, exp: expTime, dur, hwid });
+                const newDesc = currentKeys.map(k => `${k.key}|${k.exp}|${k.dur}|${k.hwid}`).join('\n');
+                const editUrl = `https://discord.com/api/webhooks/${wid}/${wt}/messages/${MESSAGE_ID}`;
+                const payload = {
+                    embeds: [{
+                        title: "🔑 АКТИВНЫЕ КЛЮЧИ",
+                        description: "```\n" + newDesc + "\n```",
+                        color: 3447003,
+                        footer: { text: `Всего ключей: ${currentKeys.length} | Обновлено: ${new Date().toISOString()}` }
+                    }]
+                };
+
+                const patchResp = await fetch(editUrl, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (patchResp.ok) {
+                    document.getElementById('keyText').innerText = key;
+                } else {
+                    document.getElementById('keyText').innerText = "Ошибка при добавлении в Discord. Проверь вебхук и ID.";
+                }
+            } catch (e) {
+                document.getElementById('keyText').innerText = "Ошибка сети: " + e.message;
+            }
+        }
+
+        function copyKey() {
+            const key = document.getElementById('keyText').innerText;
+            navigator.clipboard.writeText(key).then(() => alert('Ключ скопирован!'));
+        }
+    </script>
+</body>
+</html>
