@@ -22,13 +22,13 @@
         <p class="sub">Трёхэтапная активация</p>
 
         <div id="stage1">
-            <button class="btn" onclick="openStage(1)">1 этап</button>
+            <button class="btn" onclick="location.href='https://work.ink/2zLT/trident-survival-script'">1 этап</button>
         </div>
         <div id="stage2" class="hidden">
-            <button class="btn" onclick="openStage(2)">2 этап</button>
+            <button class="btn" onclick="location.href='https://work.ink/2zLT/trident-survival-script-2'">2 этап</button>
         </div>
         <div id="stage3" class="hidden">
-            <button class="btn" onclick="openStage(3)">3 этап</button>
+            <button class="btn" onclick="location.href='https://work.ink/2zLT/trident-survival-script-3'">3 этап</button>
         </div>
         <div id="getKey" class="hidden">
             <button class="btn" onclick="generateKey()">Получить ключ</button>
@@ -39,38 +39,56 @@
             <button class="btn" onclick="copyKey()">📋 Скопировать</button>
             <p class="info">Вставьте ключ в окно активации скрипта</p>
         </div>
+
         <p class="info" style="margin-top:40px;">© dedsamodell 2026</p>
     </div>
 
     <script>
-        // ⚙️ ЗАМЕНИ НА СВОЙ ВЕБХУК И ID СООБЩЕНИЯ С КЛЮЧАМИ
+        // ⚙️ Настройки (замени на свои реальные данные)
         const WEBHOOK_URL = "https://discord.com/api/webhooks/1502577103634300970/AK9Bm8ZS_DI_vGa0xb6MNUe_sNLp3lMQ2RDdfMm1hHZ2O5a87Ma9BiSTvLiy2jaiWDtV";
-        const MESSAGE_ID = 1502579328867897376;  // ID сообщения с ключами
+        const MESSAGE_ID = "1502579328867897376";
 
-        // Ссылки на твои этапы Work.ink (уже готовые)
-        const STAGE_LINKS = [
-            "https://work.ink/2zLT/trident-survival-script",
-            "https://work.ink/2zLT/trident-survival-script-2",
-            "https://work.ink/2zLT/trident-survival-script-3"
-        ];
+        function showStage(stageId) {
+            document.querySelectorAll('#stage1, #stage2, #stage3, #getKey, #result').forEach(el => el.classList.add('hidden'));
+            document.getElementById(stageId).classList.remove('hidden');
+        }
 
-        // Открывает этап в новой вкладке и показывает следующий
-        function openStage(n) {
-            window.open(STAGE_LINKS[n - 1], '_blank');
-            // Прячем текущую кнопку
-            if (n === 1) {
-                document.getElementById('stage1').classList.add('hidden');
-                document.getElementById('stage2').classList.remove('hidden');
-            } else if (n === 2) {
-                document.getElementById('stage2').classList.add('hidden');
-                document.getElementById('stage3').classList.remove('hidden');
-            } else if (n === 3) {
-                document.getElementById('stage3').classList.add('hidden');
-                document.getElementById('getKey').classList.remove('hidden');
+        // Проверка токена и показ этапа
+        async function checkTokenAndShowStage(token, stageId) {
+            if (!token) {
+                document.body.innerHTML = '<div class="container"><p>Ошибка: токен не найден. Пройдите задание заново.</p></div>';
+                return;
+            }
+            try {
+                const response = await fetch(`https://work.ink/_api/v2/token/isValid/${token}?deleteToken=1`);
+                const data = await response.json();
+                if (data.valid) {
+                    showStage(stageId);
+                } else {
+                    document.body.innerHTML = '<div class="container"><p>Ошибка: токен недействителен или уже использован. Пройдите задание заново.</p></div>';
+                }
+            } catch (e) {
+                document.body.innerHTML = '<div class="container"><p>Ошибка соединения с Work.ink. Попробуйте позже.</p></div>';
             }
         }
 
-        // Генерация ключа формата XXXX-XXXX-XXXX-XXXX
+        // При загрузке страницы проверяем, есть ли токен
+        (function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const stage = urlParams.get('stage');
+            const token = urlParams.get('token');
+
+            if (stage === '2' && token) {
+                checkTokenAndShowStage(token, 'stage2');
+            } else if (stage === '3' && token) {
+                checkTokenAndShowStage(token, 'stage3');
+            } else if (stage === 'key' && token) {
+                checkTokenAndShowStage(token, 'getKey');
+            }
+            // Иначе по умолчанию видна кнопка 1 этапа
+        })();
+
+        // Генератор ключа
         function randomKey() {
             const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
             let key = '';
@@ -93,16 +111,15 @@
             document.getElementById('result').classList.remove('hidden');
             document.getElementById('keyText').innerText = "Добавляем ключ в Discord...";
 
-            try {
-                const parts = WEBHOOK_URL.split('/');
-                const wid = parts[parts.length - 2];
-                const wt = parts[parts.length - 1];
+            const parts = WEBHOOK_URL.split('/');
+            const wid = parts[parts.length - 2];
+            const wt = parts[parts.length - 1];
+            const msgUrl = `https://discord.com/api/webhooks/${wid}/${wt}/messages/${MESSAGE_ID}`;
 
-                // Получаем текущие ключи
-                const msgUrl = `https://discord.com/api/webhooks/${wid}/${wt}/messages/${MESSAGE_ID}`;
+            let currentKeys = [];
+            try {
                 const resp = await fetch(msgUrl);
                 const data = await resp.json();
-                let currentKeys = [];
                 if (data.embeds?.[0]?.description) {
                     const text = data.embeds[0].description.replace(/```/g, '').trim();
                     currentKeys = text.split('\n').filter(line => line.includes('|')).map(line => {
@@ -110,30 +127,33 @@
                         return { key: p[0], exp: p[1], dur: p[2] || '7д', hwid: p[3] || 'HWID' };
                     });
                 }
+            } catch (e) {
+                document.getElementById('keyText').innerText = "Ошибка получения ключей из Discord";
+                return;
+            }
 
-                // Добавляем новый ключ
-                currentKeys.push({ key, exp: expTime, dur, hwid });
-                const newDesc = currentKeys.map(k => `${k.key}|${k.exp}|${k.dur}|${k.hwid}`).join('\n');
-                const editUrl = `https://discord.com/api/webhooks/${wid}/${wt}/messages/${MESSAGE_ID}`;
-                const payload = {
-                    embeds: [{
-                        title: "🔑 АКТИВНЫЕ КЛЮЧИ",
-                        description: "```\n" + newDesc + "\n```",
-                        color: 3447003,
-                        footer: { text: `Всего ключей: ${currentKeys.length} | Обновлено: ${new Date().toISOString()}` }
-                    }]
-                };
+            currentKeys.push({ key, exp: expTime, dur, hwid });
+            const newDesc = currentKeys.map(k => `${k.key}|${k.exp}|${k.dur}|${k.hwid}`).join('\n');
+            const editUrl = `https://discord.com/api/webhooks/${wid}/${wt}/messages/${MESSAGE_ID}`;
+            const payload = {
+                embeds: [{
+                    title: "🔑 АКТИВНЫЕ КЛЮЧИ",
+                    description: "```\n" + newDesc + "\n```",
+                    color: 3447003,
+                    footer: { text: `Всего ключей: ${currentKeys.length} | Обновлено: ${new Date().toISOString()}` }
+                }]
+            };
 
+            try {
                 const patchResp = await fetch(editUrl, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
-
                 if (patchResp.ok) {
                     document.getElementById('keyText').innerText = key;
                 } else {
-                    document.getElementById('keyText').innerText = "Ошибка при добавлении в Discord. Проверь вебхук и ID.";
+                    document.getElementById('keyText').innerText = "Ошибка при добавлении ключа в Discord";
                 }
             } catch (e) {
                 document.getElementById('keyText').innerText = "Ошибка сети: " + e.message;
